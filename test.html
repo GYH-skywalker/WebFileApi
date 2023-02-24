@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    #filelist{
+        width: 200px;
+        height: 50rem;
+        border: 1px solid lightgrey;
+    }
+    .liLayout{
+        vertical-align: middle;
+        list-style-position: outside;
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        height: 1.3em;
+    }
+    .liLayout:hover{
+        background-color: rgb(223, 221, 221);
+    }
+    li{
+        display: flex;
+        flex-direction: column;
+        align-self: flex-start;
+
+    }
+    /* li:visited{
+        background-color: rgba(0, 153, 255, 0.432);
+        border-radius: 0.1px solid rgb(0, 110, 255);
+        background-blend-mode: multiply;
+    } */
+    /* li::marker{
+        font-size: 30px;
+        color:red
+    } */
+    i{
+        line-height: 1.3em;
+        width: 20px;
+        height: 20px;
+        /* background-image:url(fold.svg); */
+        background-size:20px;
+    }
+    .fold{
+        background-image: url(fold.svg);
+        background-size: 10px;
+        width: 10px;
+        height: 10px;
+    }
+    .mark:not(.fold){
+        display: inline-block;
+        width: 13px;
+        height: 13px;
+        background-size: contain;
+    }
+    .file{
+        background-image: url(file.svg);
+    }
+    .dir{
+        background-image: url(dir.svg);
+    }
+    .textSpan{
+        vertical-align: bottom;
+        display: inline-block;
+        margin-left:  0.15em;
+        font-size: 12px;
+        line-height: 15px;
+        color: rgb(118 118 118);
+    }
+    .listLayout{
+        align-items: center;
+        display: flex;
+    }
+    ul li .liLayout{
+        background-color: rgb(250, 250, 250);
+    }
+</style>
+<body>
+    <!-- <button onclick="open" >open folder</button> -->
+    <button id="btn">open folder</button>
+    <div id="filelist"></div>
+</body>
+<script type="text/javascript">
+
+    log = (...msg)=>{
+            console.log(...msg)
+        }
+    table = (...msg)=>{
+        console.table(...msg)
+    }
+    let fold = false
+    // foldspan.style.cssText=``
+    let filelist = document.getElementById("filelist")
+    document.getElementById("btn").onclick = ()=>{
+        getContents(filelist)
+    }
+    async function AsyncIterator(Aiterator){
+        let arr = new Array()
+        for await (const item of Aiterator){
+            // log(item)
+            arr.push(item)
+        }
+        return Promise.resolve(arr)
+    }
+
+
+
+    function getContents(parentDom){
+        window.showDirectoryPicker().then(res=>{
+            return res.entries()
+        }).then(res=>{
+            return AsyncIterator(res)
+        }).then(res=>{
+            table(res)
+            res = sortDirAndFile(res)
+            res.forEach(ele => {
+               let [fileMark,li]= createDirList(ele,parentDom)
+               log(ele)
+                if(ele[1].kind == 'file'){
+                    fileMark.setAttribute('class','mark file')
+                    ele[1].getFile().then(res=>{
+                        res.text().then(res=>{
+                            // log(res)
+                            // document.writeln(res)
+                        })
+                    })
+                }else{
+                    fileMark.setAttribute('class','mark dir')
+                    getSub(ele[1].entries(),li)
+                }
+                
+            });
+        })
+    }
+
+    function getSub(entries,parentDom){
+        AsyncIterator(entries).then(res=>{
+            res.forEach(ele => {
+               let [fileMark,li] = createDirList(ele,parentDom)
+                if(ele[1].kind == 'file'){
+                    fileMark.setAttribute('class','mark file')
+                }else{
+                    fileMark.setAttribute('class','mark dir')
+                    getSub(ele[1].entries(),li)
+                }
+                
+            });
+        })
+    }
+
+    function sortDirAndFile(res){
+        res.sort((first,second)=>{
+                    if(first[1].name.toUpperCase() > second[1].name.toUpperCase()){
+                        return 1
+                    }
+                })
+        let dir = res.filter(item=>item[1].kind == 'directory')
+        let file = res.filter(item=>item[1].kind == 'file')
+        table(file)
+        table(dir)
+        res = dir.concat(file)
+        return res
+    }
+    function createDirList(ele,parent){
+        let text = ele[0]
+        let kind = ele[1].kind
+        let li = document.createElement("li")
+        let foldspan = document.createElement('i')
+        let fileMark = document.createElement('i')
+        let textSpan = document.createElement('span')
+        let leftLayout = document.createElement('div')
+        let liLayout = document.createElement('div')
+        let ul = document.createElement('ul')
+        textSpan.innerText = text
+        liLayout.setAttribute('class','liLayout')
+        liLayout.setAttribute(kind,'')
+        textSpan.setAttribute('class','textSpan')
+        foldspan.setAttribute('class','mark fold isfold')
+        leftLayout.setAttribute('class','listLayout')
+        let dataset = `data-li-${text.split('.')[0].replace(' ','')}`
+        li.setAttribute(dataset,'')
+        liLayout.onclick = (e)=>isFold(li)
+        leftLayout.appendChild(fileMark)
+        leftLayout.appendChild(textSpan)
+        liLayout.append(leftLayout,foldspan)
+        li.appendChild(liLayout)
+        log(parent.tagName)
+        if(parent && parent.tagName == 'LI'){
+            ul.setAttribute('class','subMenu')
+            ul.style.cssText=`display:none;`
+            ul.appendChild(li)
+            // li = ul
+            parent.appendChild(ul)
+        }else{
+            parent.appendChild(li)
+        }
+
+        return [fileMark,li]
+    }
+
+
+    function isFold(e){
+        let ele = e.children
+        for (let i = 0; i < ele.length; i++) {
+            let ul = ele.item(i)
+            log(ul)
+            log('--------------------------------------------')
+            if(!fold){
+                if(ul.tagName == 'UL'){
+                    ul.style.cssText =`display:block;width:calc(100% - 1em);margin:0px;padding-left:1em`
+                }
+            }else{
+                if(ul.tagName == 'UL'){
+                    ul.style.cssText =`display:none`
+                }
+            }
+        }
+       fold = !fold
+        // log(ul)
+    }
+
+</script>
+</html>
