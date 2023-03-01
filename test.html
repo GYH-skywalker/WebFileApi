@@ -7,10 +7,48 @@
     <title>Document</title>
 </head>
 <style>
+
+    :root{
+        --FileMarkWidth:13px;
+    }
+    *{
+        /*overflow-x: hidden;*/
+    }
+    #mainWindow{
+        display: flex;
+        justify-content: space-around;
+        /*align-items: self-start;*/
+        position: fixed;
+        top: calc(1.5em + 20px);
+        left: 0px;
+        bottom: 0px;
+        width: 100%;
+    }
     #filelist{
         width: 200px;
-        height: 50rem;
-        border: 1px solid lightgrey;
+        /*height: 100%;*/
+        position: relative;
+        bottom: 0px;
+        border: 5px solid lightgrey;
+        /*overflow: hidden;*/
+        /*position: fixed;*/
+        /*top: 30px;*/
+        /*bottom: 0px;*/
+        /*list-style: -moz-ethiopic-numeric;*/
+    }
+    #editArea{
+        width: calc(100% - 1.1 * 200px);
+        border: 1px solid orangered;
+        /*position: absolute;*/
+        /*left: calc(1.125 * 200px);*/
+        overflow-y: scroll;
+        outline: none;
+    }
+    #btn{
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        height: 1.5em;
     }
     .liLayout{
         vertical-align: middle;
@@ -24,10 +62,30 @@
     .liLayout:hover{
         background-color: rgb(223, 221, 221);
     }
-    li{
+    li.catalogList{
         display: flex;
         flex-direction: column;
         align-self: flex-start;
+        overflow:hidden;
+        padding: 0px 0.4em;
+        background-color: #fff;
+    }
+    li.contentLine{
+        list-style-position: inside;
+        /*background-color: red;*/
+        word-break: keep-all;
+        white-space: nowrap;
+        /*padding-left: 2em;*/
+    }
+    /*li.contentLine::before{*/
+    /*    content: var();*/
+    /*}*/
+    li.contentLine::marker{
+        display: inline-block;
+        margin-left: 2em;
+        width: 2em;
+        color:green;
+        float: left;
 
     }
     /* li:visited{
@@ -54,8 +112,8 @@
     }
     .mark:not(.fold){
         display: inline-block;
-        width: 13px;
-        height: 13px;
+        width: var(--FileMarkWidth);
+        height: var(--FileMarkWidth);
         background-size: contain;
     }
     .file{
@@ -71,6 +129,9 @@
         font-size: 12px;
         line-height: 15px;
         color: rgb(118 118 118);
+        width:calc(100% - var(--FileMarkWidth));
+        word-break: keep-all;
+        white-space: nowrap;
     }
     .listLayout{
         align-items: center;
@@ -83,7 +144,10 @@
 <body>
     <!-- <button onclick="open" >open folder</button> -->
     <button id="btn">open folder</button>
-    <div id="filelist"></div>
+    <div id="mainWindow">
+        <div id="filelist"></div>
+        <div id="editArea" contenteditable="true"></div>
+    </div>
 </body>
 <script type="text/javascript">
 
@@ -93,10 +157,22 @@
     table = (...msg)=>{
         console.table(...msg)
     }
+    let data = {
+        Files:{},
+        constant:{
+            FileOrDirName:'FileOrDirName'
+        }
+    }
+    const catalogEle = {
+        File:'file',
+        Directory:'directory'
+    }
     let fold = false
     // foldspan.style.cssText=``
     let filelist = document.getElementById("filelist")
+    let editArea = document.getElementById("editArea")
     document.getElementById("btn").onclick = ()=>{
+        filelist.childNodes.forEach(item=>item.remove())
         getContents(filelist)
     }
     async function AsyncIterator(Aiterator){
@@ -108,8 +184,6 @@
         return Promise.resolve(arr)
     }
 
-
-
     function getContents(parentDom){
         window.showDirectoryPicker().then(res=>{
             return res.entries()
@@ -120,10 +194,12 @@
             res = sortDirAndFile(res)
             res.forEach(ele => {
                let [fileMark,li]= createDirList(ele,parentDom)
-               log(ele)
-                if(ele[1].kind == 'file'){
+               // log(ele)
+                if(ele[1].kind == catalogEle.File){
                     fileMark.setAttribute('class','mark file')
                     ele[1].getFile().then(res=>{
+                        data.Files[res.name] = res
+                        console.log('file',res)
                         res.text().then(res=>{
                             // log(res)
                             // document.writeln(res)
@@ -142,7 +218,11 @@
         AsyncIterator(entries).then(res=>{
             res.forEach(ele => {
                let [fileMark,li] = createDirList(ele,parentDom)
-                if(ele[1].kind == 'file'){
+                if(ele[1].kind == catalogEle.File){
+                    ele[1].getFile().then(res=>{
+                        data.Files[res.name] = res
+                    })
+
                     fileMark.setAttribute('class','mark file')
                 }else{
                     fileMark.setAttribute('class','mark dir')
@@ -159,18 +239,20 @@
                         return 1
                     }
                 })
-        let dir = res.filter(item=>item[1].kind == 'directory')
-        let file = res.filter(item=>item[1].kind == 'file')
+        let dir = res.filter(item=>item[1].kind == catalogEle.Directory)
+        let file = res.filter(item=>item[1].kind == catalogEle.File)
         table(file)
         table(dir)
         res = dir.concat(file)
         return res
     }
     function createDirList(ele,parent){
+        //目录中各个条目的名称
         let text = ele[0]
+        //目录中各个条目的种类包含:file,directory
         let kind = ele[1].kind
         let li = document.createElement("li")
-        let foldspan = document.createElement('i')
+        let foldSpan = document.createElement('i')
         let fileMark = document.createElement('i')
         let textSpan = document.createElement('span')
         let leftLayout = document.createElement('div')
@@ -180,16 +262,20 @@
         liLayout.setAttribute('class','liLayout')
         liLayout.setAttribute(kind,'')
         textSpan.setAttribute('class','textSpan')
-        foldspan.setAttribute('class','mark fold isfold')
+        foldSpan.setAttribute('class','mark fold isfold')
         leftLayout.setAttribute('class','listLayout')
-        let dataset = `data-li-${text.split('.')[0].replace(' ','')}`
+        let dataset = `data-li-${text.split('.')[0].replace(/[\s\%]*/g,'')}`
         li.setAttribute(dataset,'')
-        liLayout.onclick = (e)=>isFold(li)
+        li.setAttribute('class','catalogList')
+        li.setAttribute(data.constant.FileOrDirName,text)
+        liLayout.onclick = ()=> menuListOnclick(liLayout,li)
         leftLayout.appendChild(fileMark)
+        liLayout.append(leftLayout)
+        if(kind != 'file'){
+            liLayout.appendChild(foldSpan)
+        }
         leftLayout.appendChild(textSpan)
-        liLayout.append(leftLayout,foldspan)
         li.appendChild(liLayout)
-        log(parent.tagName)
         if(parent && parent.tagName == 'LI'){
             ul.setAttribute('class','subMenu')
             ul.style.cssText=`display:none;`
@@ -204,12 +290,35 @@
     }
 
 
+    function menuListOnclick(liLayout,li){
+
+        // console.log(liLayout.getAttribute(catalogEle.File) != undefined)
+        if(liLayout.getAttribute(catalogEle.File) != undefined){
+            editArea.innerHTML = null
+            log(data.Files)
+            let fileName =  li.getAttribute(data.constant.FileOrDirName)
+            data.Files[fileName].text().then(res=>{
+                let contentLines = res.split("\n")
+                contentLines.forEach(item=>{
+                    let line = document.createElement('li')
+                    line.setAttribute('class','contentLine')
+                    line.style.cssText=`list-style:-moz-ethiopic-numeric`
+                    line.innerText = item
+                    editArea.appendChild(line)
+                })
+                // editArea.innerText = res.toString()
+            })
+        }else{
+            isFold(li)
+        }
+    }
+
     function isFold(e){
         let ele = e.children
         for (let i = 0; i < ele.length; i++) {
             let ul = ele.item(i)
-            log(ul)
-            log('--------------------------------------------')
+            // log(ul)
+            // log('--------------------------------------------')
             if(!fold){
                 if(ul.tagName == 'UL'){
                     ul.style.cssText =`display:block;width:calc(100% - 1em);margin:0px;padding-left:1em`
@@ -223,6 +332,32 @@
        fold = !fold
         // log(ul)
     }
+// editArea.onpointermove = e=>{
+//     console.log(e.target);
+// }
+    editArea.onfocus = e=>{
+        console.log(e.target);
+        conten
+    }
+//     editArea.onselectionchange = e=>{
+//         console.log(e.target);
+//     }
+// while (window.getSelection().focusNode){
+//         console.log(window.getSelection().focusNode);
+// }
+//     editArea.oninput = e=>{
+//         console.log(e.target);
+//         console.log(window.getSelection());
+//     }
+editArea.onclick= ()=>{
+    let highLight = window.getSelection().focusNode
+    highLight = highLight.childNodes.length <= 0 ? highLight.parentElement : highLight
+    log(window.getSelection().focusNode)
+    highLight.parentElement.childNodes.forEach(item =>{
+        item.style.backgroundColor=`white`
+    })
+    highLight.style.backgroundColor= `rgba(196, 255, 246, 0.34)`
+}
 
 </script>
 </html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div id="showModel">
+
+</div>
+</body>
+<script type="module">
+    import util from './index.js'
+    import demo from './demo1.js'
+    const _this = {
+        Points:[]
+    }
+    demo.getPoints()
+    // util.getProjectFile('./points.bin')
+    let model = document.getElementById("showModel")
+    // util.getProjectFile('./points.bin').then(res=>{
+    //     let reader = res
+    //     reader.onload = ev=>{
+    //         let res = ev.blob()
+    //         let dataView = new DataView(res.target.result)
+    //         let pointsNum = dataView.getInt32(0,true)
+    //         for (let i = 0; i < pointsNum; i++) {
+    //             let x = dataView.getFloat32(i * 12 +4,true)
+    //             let y = dataView.getFloat32(i * 12 +8,true)
+    //             let z = dataView.getFloat32(i * 12 +12,true)
+    //             _this.Points.push([x,y,z])
+    //         }
+    //         const options = {depth:8,fullscreen:false}
+    //         console.log(_this.Points);
+    //     }
+
+
+    // })
+</script>
+</html>
